@@ -188,7 +188,7 @@ function wc_vdspay_init() {
 			$fn = $order->billing_first_name;
 			$ln = $order->billing_last_name;
 			
-			// voguepay Args
+			// vdspay Args
 			$vdspay_args = array(
 			
 			    "transaction"  => array(
