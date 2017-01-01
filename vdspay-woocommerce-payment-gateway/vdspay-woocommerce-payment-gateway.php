@@ -283,16 +283,14 @@ function wc_vdspay_init() {
 				$transaction_id = $_POST['transid'];
 				$args = array( 'timeout' => 60 );
 				
-				define("username", $this->vdsPayUsername);
-				define("acct_number", $this->vdsPayAccountNo);
-				define("api_key", $this->vdsPayApiKey);
-				define("api_pass", $this->vdsPayApiPass);
+				Vdspay::Username($this->vdsPayUsername); //VdsPay Username
+				Vdspay::AccountNo($this->vdsPayAccountNo); //VdsPay Account Number
+				Vdspay::ApiKey($this->vdsPayApiKey); //VdsPay API Key
+				Vdspay::ApiPassword($this->vdsPayApiPass); //VdsPay API Password
 				
-				$service = new emp_service();
+				$transaction = Vdspay_Transaction::query(array("transid" => $transaction_id));
 				
-				$transaction = $service->query_transaction($transaction_id);
-				
-				$order_id = $transaction['reference'];
+				$order_id = $transaction['ref_code'];
 				$order_id = (int) $order_id;
 				
 				do_action( 'wc_vdspay_after_payment', $transaction );
@@ -409,8 +407,4 @@ function wc_vdspay_init() {
 			
 			
 					
-		              
-			
-		
-		
-		
+		       
