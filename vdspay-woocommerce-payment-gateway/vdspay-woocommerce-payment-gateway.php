@@ -8,13 +8,10 @@
 	License:           GPL-2.0+
  	License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
  	Github: https://github.com/vdspay/vdspay-woocommerce
-
 */
 if ( ! defined( 'ABSPATH' ) )
 	exit;
-
 add_action('plugins_loaded', 'wc_vdspay_init', 0);
-
 function wc_vdspay_init() {
 	
 	if ( ! class_exists( 'WC_Payment_Gateway' ) ) return;
@@ -25,7 +22,6 @@ function wc_vdspay_init() {
 	class WC_Vdspay_Gateway extends WC_Payment_Gateway {
 		
 		public function __construct(){
-
 			$this->id 					= 'vdspay_gateway';
     		$this->icon 				= apply_filters('woocommerce_vdspay_icon', plugins_url( 'assets/vdspay.jpg' , __FILE__ ) );
 			$this->has_fields 			= false;
@@ -52,10 +48,8 @@ function wc_vdspay_init() {
 			
 			//Actions
 			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
-
 			// Payment listener/API hook
 			add_action( 'woocommerce_api_wc_vdspay_gateway', array( $this, 'check_vdspay_response' ) );
-
 			// Check if the gateway can be used
 			if ( ! $this->is_valid_for_use() ) {
 				$this->enabled = false;
@@ -63,15 +57,10 @@ function wc_vdspay_init() {
 		}
 		
 		public function is_valid_for_use() {
-
 			if( ! in_array( get_woocommerce_currency(), array( 'NGN', 'USD' ) ) ) {
-
 				$this->msg = 'VdsPay doesn\'t support your store currency. Contact VdsPay. &#36 ';
-
 				return false;
-
 			}
-
 			return true;
 		}
 		
@@ -79,15 +68,12 @@ function wc_vdspay_init() {
 		 * Check if this gateway is enabled
 		 */
 		public function is_available() {
-
 			if ( $this->enabled == "yes" ) {
-
 				if ( ! $this->vdsPayAccountNo ) {
 					return false;
 				}
 				return true;
 			}
-
 			return false;
 		}
 		
@@ -169,20 +155,15 @@ function wc_vdspay_init() {
 		 * Get vdspay args
 		**/
 		function get_vdspay_args( $order ) {
-
 			$order_id 		= $order->id;
-
 			$order_total	= $order->get_total();
 			$accountNo 	= $this->vdsPayAccountNo;
 			$apikey 	= $this->vdsPayApiKey;
 			$memo        	= "Payment for Order ID: $order_id on ". get_bloginfo('name');
 			$type           = "sale";
             $notify_url  	= $this->notify_url;
-
 			$success_url  	= $this->get_return_url( $order );
-
 			$fail_url	  	= $this->get_return_url( $order );
-
 			$store_id 		= $this->storeId  ? $this->storeId : '';
 			
 			$fn = $order->billing_first_name;
@@ -210,7 +191,6 @@ function wc_vdspay_init() {
 				)
 			)
 			);
-
 			$vdspay_args = apply_filters( 'woocommerce_vdspay_args', $vdspay_args );
 			return $vdspay_args;
 		}
@@ -219,7 +199,6 @@ function wc_vdspay_init() {
 	     * Process the payment and return the result
 	    **/
 		function process_payment( $order_id ) {
-
 			$order = wc_get_order( $order_id );
 			
 			$data = $this->get_vdspay_args( $order );
@@ -245,7 +224,6 @@ function wc_vdspay_init() {
 			$http_status_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 			curl_close($ch);
 			
-
 			if($http_status_code == 200) {
 				$res = json_decode($c, true);
 				if($res["message"] == "Authorization URL created") {
@@ -264,7 +242,6 @@ function wc_vdspay_init() {
 			}
 			else {
 				wc_add_notice( 'Unable to connect to VdsPay, please try again or contact our customer service team.', 'error' );
-
 		        return array(
 		        	'result' 	=> 'fail',
 					'redirect'	=> ''
@@ -278,26 +255,28 @@ function wc_vdspay_init() {
 		**/
 		function check_vdspay_response( $posted ) {
 			if( isset( $_POST['transid'] ) ) {
-				$sdk = plugins_url( 'assets/vdspay_sdk/Service/emp.class.php' , __FILE__ );
+				$sdk = 'assets/vdspay_sdk/Service/emp.class.php';
 				require_once($sdk);
 				$transaction_id = $_POST['transid'];
 				$args = array( 'timeout' => 60 );
-				
+
 				Vdspay::Username($this->vdsPayUsername); //VdsPay Username
 				Vdspay::AccountNo($this->vdsPayAccountNo); //VdsPay Account Number
 				Vdspay::ApiKey($this->vdsPayApiKey); //VdsPay API Key
 				Vdspay::ApiPassword($this->vdsPayApiPass); //VdsPay API Password
-				
+
 				$transaction = Vdspay_Transaction::query(array("transid" => $transaction_id));
-				
+
 				$order_id = $transaction['ref_code'];
 				$order_id = (int) $order_id;
+				$order = new WC_Order( $order_id );
 				
 				do_action( 'wc_vdspay_after_payment', $transaction );
-				
+
 				if($transaction['status'] == 'Approved' ) {
 					$order->payment_complete( $transaction_id );
 					$order->add_order_note( 'Payment Via VdsPay.<br />Transaction ID: '.$transaction_id );
+					$order->update_status( 'success', '' );
 					$message = 'Payment was successful.';
 					$message_type = 'success';
 					// Empty cart
@@ -306,9 +285,7 @@ function wc_vdspay_init() {
 	                	'message'	=> $message,
 	                	'message_type' => $message_type
 	                );
-
 					update_post_meta( $order_id, '_vdspay_message', $vdspay_message );
-
                     die( 'IPN Processed OK. Payment Successfully' );
 				} else {
 					$message = $transaction["response"];
@@ -337,9 +314,7 @@ function wc_vdspay_init() {
                 	'message'	=> $message,
                 	'message_type' => $message_type
                 );
-
 				update_post_meta( $order_id, '_vdspay_message', $vdspay_message );
-
                 die( 'IPN Processed OK' );
 				
 			}
@@ -349,30 +324,24 @@ function wc_vdspay_init() {
 	}
 	
 	function wc_vdspay_message() {
-		
+		$response = $_POST["response"];
 		if( get_query_var( 'order-received' ) ){
 			
 			$order_id 		= absint( get_query_var( 'order-received' ) );
 			$order 			= wc_get_order( $order_id );
 			$payment_method = $order->payment_method;
-
+			$posted = $order;
+			check_vdspay_response( $posted );
 			if( is_order_received_page() &&  ( 'vdspay_gateway' == $payment_method ) ){
-
 				$vdspay_message 	= get_post_meta( $order_id, '_vdspay_message', true );
-
 				if( ! empty( $vdspay_message ) ){
-
 					$message 			= $vdspay_message['message'];
 					$message_type 		= $vdspay_message['message_type'];
-
 					delete_post_meta( $order_id, '_vdspay_message' );
-
-					wc_add_notice( $message, $message_type );
+					wc_add_notice( $message.$response, $message_type );
 				}
 			}
-
 		}
-
 	}
 	
 	add_action( 'wp', 'wc_vdspay_message' );
@@ -388,14 +357,11 @@ function wc_vdspay_init() {
 	add_filter( 'woocommerce_payment_gateways', 'wc_add_vdspay_gateway' );
 	
 	add_filter('plugin_action_links', 'vdspay_plugin_action_links', 10, 2);
-
 		function vdspay_plugin_action_links($links, $file) {
 		    static $this_plugin;
-
 		    if (!$this_plugin) {
 		        $this_plugin = plugin_basename(__FILE__);
 		    }
-
 		    if ($file == $this_plugin) {
 		        $settings_link = '<a href="' . get_bloginfo('wpurl') . '/wp-admin/admin.php?page=wc-settings&tab=checkout&section=wc_vdspay_gateway">Settings</a>';
 		        array_unshift($links, $settings_link);
@@ -404,7 +370,3 @@ function wc_vdspay_init() {
 		}
 		
 }
-			
-			
-					
-		       
