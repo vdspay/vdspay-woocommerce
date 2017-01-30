@@ -253,7 +253,7 @@ function wc_vdspay_init() {
 		/**
 		 * Verify a successful Payment!
 		**/
-		function check_vdspay_response( $posted ) {
+		function check_vdspay_response( $posted,$v=array() ) {
 			if( isset( $_POST['transid'] ) ) {
 				$sdk = 'assets/vdspay_sdk/Service/emp.class.php';
 				require_once($sdk);
@@ -286,7 +286,10 @@ function wc_vdspay_init() {
 	                	'message_type' => $message_type
 	                );
 					update_post_meta( $order_id, '_vdspay_message', $vdspay_message );
+					if($v["die"] == 0) {
+					} else {
                     die( 'IPN Processed OK. Payment Successfully' );
+					}
 				} else {
 					$message = $transaction["response"];
 					$message_type = 'error';
@@ -303,11 +306,14 @@ function wc_vdspay_init() {
 					update_post_meta( $order_id, '_vdspay_message', $vdspay_message );
 					
 					add_post_meta( $order_id, '_transaction_id', $transaction_id, true );
-					
-					die( 'IPN Processed OK. Payment Failed' );
+					if($v["die"] == 0) {
+					} else {
+                    die( 'IPN Processed OK. Payment Failed' );
+					}
 				}
 			} else {
-				$message = 	'Thank you for shopping with us. <br /> Payment Failed.';
+				$rr = $_POST["response"];
+				$message = 	'Payment Failed. <br/> '.$rr.'';
 				$message_type = 'error';
 				
 				$vdspay_message = array(
@@ -315,7 +321,10 @@ function wc_vdspay_init() {
                 	'message_type' => $message_type
                 );
 				update_post_meta( $order_id, '_vdspay_message', $vdspay_message );
-                die( 'IPN Processed OK' );
+                if($v["die"] == 0) {
+					} else {
+                    die( 'IPN Processed OK. Error' );
+					}
 				
 			}
 			
@@ -331,7 +340,10 @@ function wc_vdspay_init() {
 			$order 			= wc_get_order( $order_id );
 			$payment_method = $order->payment_method;
 			$posted = $order;
-			check_vdspay_response( $posted );
+			$v = array();
+			$v["die"] = 0;
+			$i = new WC_Vdspay_Gateway();
+			$k = $i->check_vdspay_response( $posted, $v );
 			if( is_order_received_page() &&  ( 'vdspay_gateway' == $payment_method ) ){
 				$vdspay_message 	= get_post_meta( $order_id, '_vdspay_message', true );
 				if( ! empty( $vdspay_message ) ){
